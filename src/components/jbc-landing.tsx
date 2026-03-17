@@ -163,6 +163,7 @@ export default function JbcLanding() {
   const [facts, setFacts] = useState<CowFact[]>([]);
   const [joinSuccess, setJoinSuccess] = useState(false);
   const [failedImages, setFailedImages] = useState<Record<string, true>>({});
+  const [pendingDiscussionRedirect, setPendingDiscussionRedirect] = useState<CowDiscussion | null>(null);
 
   const markImageFailed = (url?: string) => {
     if (!url) return;
@@ -176,6 +177,23 @@ export default function JbcLanding() {
   };
 
   const isImageUsable = (url?: string) => Boolean(url && !failedImages[url]);
+
+  const pendingRedirectHost = useMemo(() => {
+    if (!pendingDiscussionRedirect) return "";
+
+    try {
+      return new URL(pendingDiscussionRedirect.link).hostname.replace(/^www\./i, "");
+    } catch {
+      return "external site";
+    }
+  }, [pendingDiscussionRedirect]);
+
+  const confirmDiscussionRedirect = () => {
+    if (!pendingDiscussionRedirect) return;
+
+    window.open(pendingDiscussionRedirect.link, "_blank", "noopener,noreferrer");
+    setPendingDiscussionRedirect(null);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -525,18 +543,17 @@ export default function JbcLanding() {
 
               <div className="mt-4 space-y-3">
                 {discussionItems.map((item) => (
-                  <a
+                  <button
                     key={item.link}
-                    href={item.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    type="button"
+                    onClick={() => setPendingDiscussionRedirect(item)}
                     className="block border border-white/15 bg-black/35 p-3 transition-colors hover:border-(--jbc-neon)"
                   >
                     <p className="font-display text-lg uppercase leading-tight text-foreground">{item.title}</p>
                     <p className="mt-2 text-xs uppercase tracking-[0.11em] text-white/62">
                       {item.subreddit} {item.score > 0 ? `- score ${item.score}` : ""}
                     </p>
-                  </a>
+                  </button>
                 ))}
               </div>
             </motion.article>
@@ -629,6 +646,42 @@ export default function JbcLanding() {
           </div>
         </section>
       </main>
+
+      {pendingDiscussionRedirect ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/78 p-4"
+          onClick={() => setPendingDiscussionRedirect(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="discussion-redirect-title"
+            className="w-full max-w-lg border-2 border-(--jbc-neon) bg-[#0b0d0b] p-5 shadow-[8px_8px_0_var(--jbc-neon)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="font-script text-3xl text-(--jbc-neon)">Leave JBC?</p>
+            <h3 id="discussion-redirect-title" className="font-display mt-1 text-2xl uppercase text-foreground">
+              Open Reddit Discussion
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-white/78">
+              You are about to open a post on {pendingRedirectHost}. Continue to the external page?
+            </p>
+            <p className="mt-2 text-xs uppercase tracking-[0.11em] text-white/58">
+              {pendingDiscussionRedirect.title}
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button type="button" onClick={confirmDiscussionRedirect}>
+                Continue
+                <ArrowRight className="size-4" />
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setPendingDiscussionRedirect(null)}>
+                Stay on JBC
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
